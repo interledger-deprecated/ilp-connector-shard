@@ -1,0 +1,69 @@
+version: '3.3'
+services:
+  connie-west:
+    build: .
+    ports:
+      - "11001:8080"
+    expose:
+      - "8081"
+    volumes:
+      - .:/src
+    environment:
+      ICS_INTERNAL_URI: http://connie-west:8081
+      ICS_PLUGIN: ilp-plugin-payment-channel-framework
+      ICS_PLUGIN_OPTS: |-
+        {
+          "maxBalance": "1000000000000",
+          "rpcUri": "http://blah.com",
+          "token": "westtoken",
+          "prefix": "g.usd.connie.west.",
+          "info": {
+          	"currencyScale": 9,
+          	"currencyCode": "USD",
+          	"prefix": "g.usd.connie.west.",
+          	"connectors": ["g.usd.connie.west.server"]
+          }
+        }
+      ICS_INITIAL_ROUTING_TABLE: |-
+        [{
+          "prefix": "g.eur.connie.east.",
+          "shard": "http://connie-east:8081",
+          "curveLocal": [[0,0], [1000000000000, 860000000000]],
+          "local": true
+        }]
+      DEBUG: ilp-*
+    networks:
+      main:
+        aliases:
+          - connie-west
+  connie-east:
+    build: .
+    ports:
+      - "11002:8080"
+    expose:
+      - "8081"
+    volumes:
+      - .:/src
+    environment:
+      ICS_INTERNAL_URI: http://connie-east:8081
+      ICS_PLUGIN: ilp-plugin-payment-channel-framework
+      ICS_PLUGIN_OPTS: |-
+        {
+          "maxBalance": "1000000000000",
+          "rpcUri": "http://172.17.0.1:3000/__ilp_rpc",
+          "token": "easttoken",
+          "prefix": "g.eur.connie.east.",
+          "info": {
+          	"currencyScale": 9,
+          	"currencyCode": "EUR",
+          	"prefix": "g.eur.connie.east.",
+          	"connectors": ["g.eur.connie.east.server"]
+          }
+        }
+      DEBUG: ilp-*
+    networks:
+      main:
+        aliases:
+          - connie-east
+networks:
+  main:

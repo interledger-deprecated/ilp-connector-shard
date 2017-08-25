@@ -1,0 +1,137 @@
+version: '3.3'
+services:
+  connie-west:
+    build: .
+    ports:
+      - "11001:8080"
+    expose:
+      - "8080"
+      - "8081"
+    volumes:
+      - .:/src
+    environment:
+      ICS_INTERNAL_URI: http://connie-west:8081
+      ICS_PLUGIN: ilp-plugin-payment-channel-framework
+      ICS_PLUGIN_OPTS: |-
+        {
+          "maxBalance": "1000000000000",
+          "rpcUri": "http://blah.com",
+          "token": "westtoken",
+          "prefix": "g.usd.connie.west.",
+          "info": {
+          	"currencyScale": 9,
+          	"currencyCode": "USD",
+          	"prefix": "g.usd.connie.west.",
+          	"connectors": ["g.usd.connie.west.server"]
+          },
+          "store": true
+        }
+      ICS_INITIAL_ROUTING_TABLE: |-
+        [{
+          "prefix": "g.eur.conrad.",
+          "shard": "http://connie-east:8081",
+          "curveLocal": [[0,0], [1000000000000, 860000000000]]
+        }]
+      DEBUG: ilp-*
+    networks:
+      main:
+        aliases:
+          - connie-west
+  connie-east:
+    build: .
+    ports:
+      - "11002:8080"
+    expose:
+      - "8080"
+      - "8081"
+    volumes:
+      - .:/src
+    environment:
+      ICS_INTERNAL_URI: http://connie-east:8081
+      ICS_PLUGIN: ilp-plugin-payment-channel-framework
+      ICS_PLUGIN_OPTS: |-
+        {
+          "maxBalance": "1000000000000",
+          "rpcUri": "http://conrad-west:8080/rpc",
+          "token": "easttoken",
+          "prefix": "g.eur.connie.east.",
+          "info": {
+          	"currencyScale": 9,
+          	"currencyCode": "EUR",
+          	"prefix": "g.eur.connie.east.",
+          	"connectors": ["g.eur.connie.east.server"]
+          },
+          "store": true
+        }
+      DEBUG: ilp-*
+    networks:
+      main:
+        aliases:
+          - connie-east
+  conrad-west:
+    build: .
+    ports:
+      - "11011:8080"
+    expose:
+      - "8080"
+      - "8081"
+    volumes:
+      - .:/src
+    depends_on:
+      - connie-east
+    command: sh -c 'sleep 1; node_modules/.bin/nodemon .'
+    environment:
+      ICS_INTERNAL_URI: http://conrad-west:8081
+      ICS_PLUGIN: ilp-plugin-payment-channel-framework
+      ICS_PLUGIN_OPTS: |-
+        {
+          "maxBalance": "1000000000000",
+          "rpcUri": "http://connie-east:8080/rpc",
+          "token": "easttoken",
+          "prefix": "g.eur.connie.east."
+        }
+      ICS_INITIAL_ROUTING_TABLE: |-
+        [{
+          "prefix": "g.eur.conrad.east.",
+          "shard": "http://conrad-east:8081",
+          "curveLocal": [[0,0], [1000000000000, 1000000000000]],
+          "local": true
+        }]
+      DEBUG: ilp-*
+    networks:
+      main:
+        aliases:
+          - conrad-west
+  conrad-east:
+    build: .
+    ports:
+      - "11012:8080"
+    expose:
+      - "8080"
+      - "8081"
+    volumes:
+      - .:/src
+    environment:
+      ICS_INTERNAL_URI: http://conrad-east:8081
+      ICS_PLUGIN: ilp-plugin-payment-channel-framework
+      ICS_PLUGIN_OPTS: |-
+        {
+          "maxBalance": "1000000000000",
+          "rpcUri": "http://172.17.0.1:3000/__ilp_rpc",
+          "token": "easttoken",
+          "prefix": "g.eur.conrad.east.",
+          "info": {
+            "currencyScale": 9,
+            "currencyCode": "EUR",
+            "prefix": "g.eur.conrad.east.",
+            "connectors": ["g.eur.conrad.east.server"]
+          },
+          "store": true
+        }
+      DEBUG: ilp-*
+    networks:
+      main:
+        aliases:
+          - conrad-east
+networks:
+  main:
