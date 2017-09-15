@@ -84,7 +84,7 @@ module.exports = ({ prefix, peerAccount, routingTable, ilpErrors }) => async (me
       })
     } else {
       // If it's a fixed destination amount or liquidity quote we'll apply our rate to the response
-      nextIlpPacket = message.ilp
+      nextIlpPacket = packetBuffer
     }
 
     // Remote quote

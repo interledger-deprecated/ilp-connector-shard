@@ -27,19 +27,33 @@ const errors = {
 }
 
 module.exports = ({ account }) => {
-  const fns = {
+  const ilpErrors = {
     forward: (error) => Object.assign({}, error, {
       forwardedBy: error.forwardedBy.concat([ account ])
     })
   }
 
+  const rejectionMessages = {
+    forward: (error) => Object.assign({}, error, {
+      forwarded_by: error.forwarded_by.concat([ account ])
+    })
+  }
+
   Object.keys(errors).forEach((key) => {
-    fns[key] = (extra) => Object.assign({
+    ilpErrors[key] = (extra) => Object.assign({
       triggeredBy: account,
       forwardedBy: [],
       triggeredAt: new Date(),
       data: ''
     }, errors[key], extra)
+
+    rejectionMessages[key] = (extra) => Object.assign({
+      message: '',
+      triggered_by: account,
+      forwarded_by: [],
+      triggered_at: new Date(),
+      additional_info: {}
+    }, errors[key], extra)
   })
-  return fns
+  return {ilpErrors, rejectionMessages}
 }

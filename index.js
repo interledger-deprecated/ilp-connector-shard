@@ -34,17 +34,19 @@ const routingTable = new RoutingTable({
   initialTable: envJson('ICS_INITIAL_ROUTING_TABLE')
 })
 
-const ilpErrors = require('./src/lib/ilp-errors')({ account })
+const { ilpErrors, rejectionMessages } = require('./src/lib/ilp-errors')({ account })
 
 const handlers = {
   sendRequest: require('./src/handlers/public/send-request')({
+    ilpErrors,
     peerAccount,
     prefix,
-    routingTable,
-    ilpErrors
+    routingTable
   }),
   sendTransfer: require('./src/handlers/public/send-transfer')({
+    plugin,
     prefix,
+    rejectionMessages,
     routingTable,
     internalUri,
     uuidSecret
