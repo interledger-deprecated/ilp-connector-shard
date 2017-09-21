@@ -4,8 +4,9 @@
   "description": "Single connector shard (use together with ilp-connector-controller)",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint index.js src test",
-    "test": "mocha test/*.js"
+    "start": "node bin/start.js",
+    "lint": "eslint index.js bin src test",
+    "test": "mocha --recursive test/"
   },
   "repository": {
     "type": "git",

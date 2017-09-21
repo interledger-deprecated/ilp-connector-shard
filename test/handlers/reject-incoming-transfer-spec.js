@@ -2,7 +2,7 @@
 /* eslint-env mocha */
 
 const nock = require('nock')
-const rejectIncomingTransfer = require('../src/handlers/public/reject-incoming-transfer')
+const rejectIncomingTransfer = require('../../src/handlers/public/reject-incoming-transfer')
 
 describe('Reject incoming transfer (public)', function () {
   beforeEach(function () {

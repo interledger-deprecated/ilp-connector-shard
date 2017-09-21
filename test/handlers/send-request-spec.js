@@ -6,8 +6,8 @@ const nock = require('nock')
 const IlpPacket = require('ilp-packet')
 const base64url = require('base64url')
 const { LiquidityCurve } = require('ilp-routing')
-const sendRequest = require('../src/handlers/public/send-request')
-const RoutingTable = require('../src/lib/routing-table')
+const sendRequest = require('../../src/handlers/public/send-request')
+const RoutingTable = require('../../src/lib/routing-table')
 
 describe('Send Request (public)', function () {
   beforeEach(function () {
@@ -26,7 +26,7 @@ describe('Send Request (public)', function () {
         }]
       })
     }
-    this.config.ilpErrors = require('../src/lib/errors')(this.config).ilpErrors
+    this.config.ilpErrors = require('../../src/lib/errors')(this.config).ilpErrors
     this.sendRequest = sendRequest(this.config)
   })
 

@@ -5,8 +5,8 @@ const assert = require('assert')
 const nock = require('nock')
 const IlpPacket = require('ilp-packet')
 const base64url = require('base64url')
-const sendTransfer = require('../src/handlers/public/send-transfer')
-const RoutingTable = require('../src/lib/routing-table')
+const sendTransfer = require('../../src/handlers/public/send-transfer')
+const RoutingTable = require('../../src/lib/routing-table')
 
 class MockPlugin {
   constructor () {
@@ -39,7 +39,7 @@ describe('Send Transfer (public)', function () {
         }]
       })
     }
-    this.config.rejectionMessages = require('../src/lib/errors')(this.config).rejectionMessages
+    this.config.rejectionMessages = require('../../src/lib/errors')(this.config).rejectionMessages
     this.sendTransfer = sendTransfer(this.config)
 
     this.defaultTransfer = {

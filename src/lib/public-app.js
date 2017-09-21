@@ -1,5 +1,6 @@
 'use strict'
 
+const http = require('http')
 const uuid = require('uuid')
 const Koa = require('koa')
 const Router = require('koa-router')
@@ -39,7 +40,11 @@ class PublicApp {
   }
 
   listen (port) {
-    this.app.listen(port)
+    this.server = http.createServer(this.app.callback()).listen(port)
+  }
+
+  close () {
+    this.server.close()
   }
 
   async handlePostRpc (ctx) {

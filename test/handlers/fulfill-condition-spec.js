@@ -2,7 +2,7 @@
 /* eslint-env mocha */
 
 const nock = require('nock')
-const fulfillCondition = require('../src/handlers/public/fulfill-condition')
+const fulfillCondition = require('../../src/handlers/public/fulfill-condition')
 
 describe('Fulfill condition (public)', function () {
   beforeEach(function () {
