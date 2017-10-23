@@ -8,10 +8,12 @@ const { LiquidityCurve } = require('ilp-routing')
 const MIN_MESSAGE_WINDOW = 1000
 const RATE_EXPIRY_DURATION = 360000
 
-module.exports = ({ prefix, peerAccount, routingTable, ilpErrors }) => async (message) => {
+module.exports = ({ prefix, peerAccount, routeManagerUri, routingTable, ilpErrors }) => async (message) => {
   // respond to route broadcasts so we don't look like we're down
-  // TODO: these should be forwarded to the route manager service
   if (message.custom && message.custom.method === 'broadcast_routes') {
+    if (routeManagerUri) {
+      await request.post(routeManagerUri + '/internal/request').send(message)
+    }
     return {
       to: peerAccount,
       ledger: prefix
