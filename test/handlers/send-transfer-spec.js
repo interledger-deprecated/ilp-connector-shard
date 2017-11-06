@@ -39,7 +39,7 @@ describe('Send Transfer (public)', function () {
         }]
       })
     }
-    this.config.rejectionMessages = require('../../src/lib/errors')(this.config).rejectionMessages
+    this.config.ilpErrors = require('../../src/lib/ilp-errors')(this.config)
     this.sendTransfer = sendTransfer(this.config)
 
     this.defaultTransfer = {
@@ -99,10 +99,10 @@ describe('Send Transfer (public)', function () {
             code: 'R01',
             name: 'Insufficient Source Amount',
             message: 'Insufficient incoming liquidity',
-            triggered_by: this.config.account,
-            forwarded_by: [],
-            triggered_at: new Date(),
-            additional_info: {}
+            triggeredBy: this.config.account,
+            forwardedBy: [],
+            triggeredAt: new Date(),
+            data: ''
           }
         }])
       })

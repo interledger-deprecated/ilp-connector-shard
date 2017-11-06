@@ -23,7 +23,7 @@ startShard({
   plugin,
   initialTable: envJson('ICS_INITIAL_ROUTING_TABLE'),
   internalUri: process.env.ICS_INTERNAL_URI,
+  routeManagerUri: process.env.ICS_ROUTE_MANAGER_URI,
   uuidSecret,
-  publicPort: process.env.ICS_PUBLIC_PORT,
   privatePort: process.env.ICS_PRIVATE_PORT
 }).catch(err => console.error(err && err.stack))

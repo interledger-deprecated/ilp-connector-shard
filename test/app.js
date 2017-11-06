@@ -3,69 +3,37 @@
 
 const assert = require('assert')
 const crypto = require('crypto')
-const http = require('http')
-const request = require('superagent')
 const IlpPacket = require('ilp-packet')
 const base64url = require('base64url')
 const Plugin = require('ilp-plugin-payment-channel-framework')
 const startShard = require('../')
 const Store = require('../src/lib/store')
 
-const Koa = require('koa')
-const parser = require('koa-bodyparser')
-const router = require('koa-router')()
-
 describe('App', function () {
   beforeEach(async function () {
     this.clock.uninstall() // use real timers
-
-    this.senderPlugin = new Plugin({
-      maxBalance: '1000000000000',
-      rpcUri: 'http://127.0.0.1:8080/rpc',
-      token: 'westtoken',
-      prefix: 'g.usd.connie.west.'
-    })
+    this.senderPlugin = new Plugin({ server: 'btp+ws://user:westtoken@127.0.0.1:8082' })
     this.receiverPlugin = new Plugin({
       maxBalance: '1000000000000',
-      rpcUri: 'http://127.0.0.1:8082/rpc',
-      token: 'easttoken',
       prefix: 'g.eur.connie.east.',
+      listener: {port: 8085},
       info: {
         currencyScale: 9,
         currencyCode: 'EUR',
         prefix: 'g.eur.connie.east.',
         connectors: ['g.eur.connie.east.server']
       },
+      authCheck: (username, token) => username === 'user' && token === 'easttoken',
       _store: new Store()
     })
-
-    this.plugins = {
-      sender: this.senderPlugin,
-      receiver: this.receiverPlugin
-    }
-
-    const rpc = async (name, context) => {
-      const plugin = this.plugins[name]
-      const { method } = context.query
-      const params = context.request.body
-      context.body = await plugin.receive(method, params)
-    }
-    router.post('/sender', rpc.bind(null, 'sender'))
-    router.post('/receiver', rpc.bind(null, 'receiver'))
-    const app = new Koa()
-    app
-      .use(parser())
-      .use(router.routes())
-      .use(router.allowedMethods())
-    this.server = http.createServer(app.callback()).listen(8070)
 
     this.stopConnieWest = await startShard({
       internalUri: 'http://127.0.0.1:8081',
       plugin: new Plugin({
         maxBalance: '1000000000000',
-        rpcUri: 'http://127.0.0.1:8070/sender',
-        token: 'westtoken',
         prefix: 'g.usd.connie.west.',
+        authCheck: (username, token) => username === 'user' && token === 'westtoken',
+        listener: {port: 8082},
         info: {
           currencyScale: 9,
           currencyCode: 'USD',
@@ -76,7 +44,7 @@ describe('App', function () {
       }),
       initialTable: [{
         prefix: 'g.eur.connie.east.',
-        shard: 'http://127.0.0.1:8083',
+        shard: 'http://127.0.0.1:8084',
         curveLocal: [[0, 0], [1000, 2000]],
         local: true
       }],
@@ -85,15 +53,13 @@ describe('App', function () {
     })
 
     this.stopConnieEast = await startShard({
-      internalUri: 'http://127.0.0.1:8083',
+      internalUri: 'http://127.0.0.1:8084',
       plugin: new Plugin({
-        maxBalance: '1000000000000',
-        rpcUri: 'http://127.0.0.1:8070/receiver',
-        token: 'easttoken',
-        prefix: 'g.eur.connie.east.'
+        prefix: 'g.eur.connie.east.',
+        server: 'btp+ws://user:easttoken@127.0.0.1:8085'
       }),
-      publicPort: 8082,
-      privatePort: 8083
+      publicPort: 8083,
+      privatePort: 8084
     })
 
     await this.senderPlugin.connect()
@@ -105,7 +71,6 @@ describe('App', function () {
     await this.receiverPlugin.disconnect()
     await this.stopConnieWest()
     await this.stopConnieEast()
-    this.server.close()
   })
 
   it('gets a quote', async function () {
@@ -178,65 +143,25 @@ describe('App', function () {
   })
 
   it('rejects a payment', async function () {
+    const error = {
+      code: 'R01',
+      name: 'Insufficient Source Amount',
+      triggeredBy: 'g.usd.connie.west.server',
+      forwardedBy: [],
+      triggeredAt: new Date(),
+      data: 'Insufficient incoming liquidity'
+    }
     const prepared = new Promise((resolve) =>
       this.receiverPlugin.on('incoming_prepare', resolve))
     const rejected = new Promise((resolve) =>
       this.senderPlugin.on('outgoing_reject', (transfer, reason) => {
         assert.equal(transfer.id, this.transfer.id)
-        assert.deepStrictEqual(reason, {code: 'T00'})
+        assert.deepStrictEqual(reason, error)
         resolve()
       }))
     await this.senderPlugin.sendTransfer(this.transfer)
     const lastTransfer = await prepared
-    await this.receiverPlugin.rejectIncomingTransfer(lastTransfer.id, {code: 'T00'})
+    await this.receiverPlugin.rejectIncomingTransfer(lastTransfer.id, error)
     await rejected
-  })
-
-  describe('errors', function () {
-    ;[
-      {
-        desc: 'returns 400 for requests with no method',
-        query: {prefix: 'g.usd.connie.west.'}
-      },
-      {
-        desc: 'returns 400 for requests with no prefix',
-        query: {method: 'send_transfer'}
-      }
-    ].forEach(function ({desc, query}) {
-      it(desc, async function () {
-        await request.post('http://127.0.0.1:8080/rpc')
-          .query(query)
-          .then(() => assert(false))
-          .catch((err) => {
-            assert.equal(err.status, 400)
-          })
-      })
-    })
-
-    ;[
-      {
-        desc: 'returns 401 for requests from the wrong prefix',
-        opts: {prefix: 'g.usd.connie.invalid.'}
-      },
-      {
-        desc: 'returns 401 for requests with the wrong token',
-        opts: {token: 'invalidtoken'}
-      }
-    ].forEach(function ({desc, opts}) {
-      it(desc, async function () {
-        const senderPlugin = new Plugin(Object.assign({
-          maxBalance: '1000000000000',
-          rpcUri: 'http://127.0.0.1:8080/rpc',
-          token: 'westtoken',
-          prefix: 'g.usd.connie.west.'
-        }, opts))
-        await senderPlugin.connect().then(() => {
-          assert(false)
-        }).catch((err) => {
-          assert.equal(err.status, 401)
-          assert.equal(err.message, 'Unauthorized')
-        })
-      })
-    })
   })
 })

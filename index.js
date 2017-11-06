@@ -1,38 +1,44 @@
 'use strict'
 
 const crypto = require('crypto')
-const PublicApp = require('./src/lib/public-app')
+const request = require('superagent')
 const PrivateApp = require('./src/lib/private-app')
 const RoutingTable = require('./src/lib/routing-table')
 
-module.exports = ({ plugin, internalUri, initialTable, uuidSecret, publicPort, privatePort }) => {
+module.exports = ({
+  plugin, // LedgerPlugin
+  internalUri, // String
+  routeManagerUri, // String
+  initialTable, // [{prefix, shard, curveLocal, local}]
+  uuidSecret, // Buffer
+  privatePort // Integer
+}) => {
   uuidSecret = uuidSecret || crypto.randomBytes(16)
-  publicPort = publicPort || 8080
   privatePort = privatePort || 8081
 
   // TODO: This should be cleaner and part of the plugin interface
   //       I.e. if a plugin wants us to create an RPC server, it should tell us
   //       the necessary parameters.
   const prefix = plugin._prefix
-  const token = plugin._getAuthToken()
   const account = plugin.getAccount()
   const peerAccount = plugin.getPeerAccount()
 
   const routingTable = new RoutingTable({ initialTable })
 
-  const { ilpErrors, rejectionMessages } = require('./src/lib/errors')({ account })
+  const ilpErrors = require('./src/lib/ilp-errors')({ account })
 
   const handlers = {
     sendRequest: require('./src/handlers/public/send-request')({
       ilpErrors,
       peerAccount,
       prefix,
-      routingTable
+      routingTable,
+      routeManagerUri
     }),
     sendTransfer: require('./src/handlers/public/send-transfer')({
       plugin,
       prefix,
-      rejectionMessages,
+      ilpErrors,
       routingTable,
       internalUri,
       uuidSecret
@@ -40,14 +46,6 @@ module.exports = ({ plugin, internalUri, initialTable, uuidSecret, publicPort, p
     rejectIncomingTransfer: require('./src/handlers/public/reject-incoming-transfer')(),
     fulfillCondition: require('./src/handlers/public/fulfill-condition')()
   }
-
-  const publicApp = new PublicApp({
-    plugin,
-    token,
-    peerAccount,
-    prefix,
-    handlers
-  })
 
   const privateHandlers = {
     sendTransfer: require('./src/handlers/private/send-transfer')({
@@ -65,6 +63,9 @@ module.exports = ({ plugin, internalUri, initialTable, uuidSecret, publicPort, p
       plugin,
       account,
       peerAccount
+    }),
+    updateRoutes: require('./src/handlers/private/update-routes')({
+      routingTable
     })
   }
 
@@ -79,8 +80,13 @@ module.exports = ({ plugin, internalUri, initialTable, uuidSecret, publicPort, p
     plugin.on('incoming_prepare', handlers.sendTransfer)
     plugin.on('outgoing_reject', handlers.rejectIncomingTransfer)
     plugin.on('outgoing_fulfill', handlers.fulfillCondition)
-    publicApp.listen(publicPort)
     privateApp.listen(privatePort)
+
+    if (routeManagerUri) {
+      await request.post(routeManagerUri + '/internal/shard/' + encodeURIComponent(prefix))
+        .then(() => console.log('connector-shard: route-manager ok'))
+        .catch((err) => console.log('connector-shard: route-manager error', err.message))
+    }
 
     return async () => {
       await plugin.disconnect()
@@ -88,7 +94,6 @@ module.exports = ({ plugin, internalUri, initialTable, uuidSecret, publicPort, p
       plugin.off('incoming_prepare', handlers.sendTransfer)
       plugin.off('outgoing_reject', handlers.rejectIncomingTransfer)
       plugin.off('outgoing_fulfill', handlers.fulfillCondition)
-      publicApp.close()
       privateApp.close()
     }
   }

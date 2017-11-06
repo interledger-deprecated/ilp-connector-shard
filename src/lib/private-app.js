@@ -39,7 +39,16 @@ class PrivateApp {
     })
 
     router.post('/internal/request', async (ctx) => {
-      ctx.body = await handlers.sendRequest({ ilp: ctx.request.body.ilp })
+      ctx.body = await handlers.sendRequest({
+        ilp: ctx.request.body.ilp,
+        // "custom" is used in the route-manager for route broadcasts.
+        custom: ctx.request.body.custom
+      })
+      ctx.status = 200
+    })
+
+    router.post('/internal/routes', async (ctx) => {
+      await handlers.updateRoutes({ all: ctx.request.body.all })
       ctx.status = 200
     })
 

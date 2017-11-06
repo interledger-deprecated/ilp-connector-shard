@@ -7,7 +7,7 @@ const { getDeterministicUuid } = require('../../util/uuid')
 
 const MIN_MESSAGE_WINDOW = 1000
 
-module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, rejectionMessages }) => async (transfer) => {
+module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpErrors }) => async (transfer) => {
   const packetBuffer = Buffer.from(transfer.ilp, 'base64')
   const { type, data } = IlpPacket.deserializeIlpPacket(packetBuffer)
 
@@ -22,7 +22,7 @@ module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, rejec
     if (nextAmount.lessThan(data.amount)) {
       // TODO should this make an http request to a handler?
       await plugin.rejectIncomingTransfer(transfer.id,
-        rejectionMessages.R01_Insufficient_Source_Amount({
+        ilpErrors.R01_Insufficient_Source_Amount({
           message: 'Insufficient incoming liquidity'
         }))
       return

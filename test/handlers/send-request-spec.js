@@ -26,7 +26,7 @@ describe('Send Request (public)', function () {
         }]
       })
     }
-    this.config.ilpErrors = require('../../src/lib/errors')(this.config).ilpErrors
+    this.config.ilpErrors = require('../../src/lib/ilp-errors')(this.config)
     this.sendRequest = sendRequest(this.config)
   })
 
