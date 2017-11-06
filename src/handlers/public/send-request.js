@@ -3,12 +3,14 @@
 const base64url = require('base64url')
 const request = require('superagent')
 const IlpPacket = require('ilp-packet')
+const { LiquidityCurve } = require('ilp-routing')
 
 const MIN_MESSAGE_WINDOW = 1000
 const RATE_EXPIRY_DURATION = 360000
 
-module.exports = ({ prefix, peerAccount, routingTable }) => async (message) => {
+module.exports = ({ prefix, peerAccount, routingTable, ilpErrors }) => async (message) => {
   // respond to route broadcasts so we don't look like we're down
+  // TODO: these should be forwarded to the route manager service
   if (message.custom && message.custom.method === 'broadcast_routes') {
     return {
       to: peerAccount,
@@ -17,26 +19,33 @@ module.exports = ({ prefix, peerAccount, routingTable }) => async (message) => {
   }
 
   const packetBuffer = Buffer.from(message.ilp, 'base64')
-  const { type, data } = IlpPacket.deserializeIlpPacket(packetBuffer)
+  const req = IlpPacket.deserializeIlpPacket(packetBuffer)
   // TODO: This could break for non-ILQP message types
-  const { destinationAccount, destinationHoldDuration } = data
+  const { destinationAccount, destinationHoldDuration } = req.data
   const nextHop = routingTable.getNextHop(destinationAccount)
   const sourceHoldDuration = destinationHoldDuration + MIN_MESSAGE_WINDOW
 
-  if (nextHop.local) {
+  if (!nextHop) {
+    const responsePacket = IlpPacket.serializeIlpError(ilpErrors.F02_Unreachable())
+    return {
+      to: peerAccount,
+      ledger: prefix,
+      ilp: base64url(responsePacket)
+    }
+  } else if (nextHop.local) {
     let responsePacket
-    if (type === IlpPacket.Type.TYPE_ILQP_BY_SOURCE_REQUEST) {
+    if (req.type === IlpPacket.Type.TYPE_ILQP_BY_SOURCE_REQUEST) {
       // Apply our rate to the source amount
-      const { sourceAmount } = data
+      const { sourceAmount } = req.data
 
       const destinationAmount = nextHop.curveLocal.amountAt(sourceAmount).toString()
       responsePacket = IlpPacket.serializeIlqpBySourceResponse({
         destinationAmount,
         sourceHoldDuration
       })
-    } else if (type === IlpPacket.Type.TYPE_ILQP_BY_DESTINATION_REQUEST) {
+    } else if (req.type === IlpPacket.Type.TYPE_ILQP_BY_DESTINATION_REQUEST) {
       // Apply our rate to the destination amount (because it's local)
-      const { destinationAmount } = data
+      const { destinationAmount } = req.data
 
       // Add one (1) to basically round up
       const sourceAmount = nextHop.curveLocal.amountReverse(destinationAmount).plus(1).toString()
@@ -44,7 +53,7 @@ module.exports = ({ prefix, peerAccount, routingTable }) => async (message) => {
         sourceAmount,
         sourceHoldDuration
       })
-    } else if (type === IlpPacket.Type.TYPE_ILQP_LIQUIDITY_REQUEST) {
+    } else if (req.type === IlpPacket.Type.TYPE_ILQP_LIQUIDITY_REQUEST) {
       responsePacket = IlpPacket.serializeIlqpLiquidityResponse({
         liquidityCurve: nextHop.curveLocal.toBuffer(),
         appliesToPrefix: nextHop.prefix,
@@ -65,8 +74,8 @@ module.exports = ({ prefix, peerAccount, routingTable }) => async (message) => {
     // When remote quoting by source amount we need to adjust
     // the amount we ask our peer for by our rate
     let nextIlpPacket
-    if (type === IlpPacket.Type.TYPE_ILQP_BY_SOURCE_REQUEST) {
-      const { sourceAmount } = data
+    if (req.type === IlpPacket.Type.TYPE_ILQP_BY_SOURCE_REQUEST) {
+      const { sourceAmount } = req.data
       const nextAmount = nextHop.curveLocal.amountAt(sourceAmount).toString()
       nextIlpPacket = IlpPacket.serializeIlqpBySourceRequest({
         destinationAccount,
@@ -75,48 +84,51 @@ module.exports = ({ prefix, peerAccount, routingTable }) => async (message) => {
       })
     } else {
       // If it's a fixed destination amount or liquidity quote we'll apply our rate to the response
-      nextIlpPacket = message.ilp
+      nextIlpPacket = packetBuffer
     }
 
     // Remote quote
-    const res = await request.post(nextHop.shard + '/internal/request')
-      .send({ ilp: nextIlpPacket })
+    const httpRes = await request.post(nextHop.shard + '/internal/request')
+      .send({ ilp: base64url(nextIlpPacket) })
+    const res = IlpPacket.deserializeIlpPacket(Buffer.from(httpRes.body.ilp, 'base64'))
+    const sourceHoldDuration = res.data.sourceHoldDuration + MIN_MESSAGE_WINDOW
 
-    if (type === IlpPacket.Type.TYPE_ILQP_BY_SOURCE_REQUEST) {
-      return {
-        to: peerAccount,
-        ledger: prefix,
-        ilp: res.body.ilp
-      }
+    let responsePacket
+    if (res.type === IlpPacket.Type.TYPE_ILP_ERROR) {
+      responsePacket = IlpPacket.serializeIlpError(ilpErrors.forward(res.data))
+    } else if (req.type + 1 !== res.type) {
+      responsePacket = IlpPacket.serializeIlpError(ilpErrors.F01_Invalid_Packet())
+    } else if (res.type === IlpPacket.Type.TYPE_ILQP_BY_SOURCE_RESPONSE) {
+      responsePacket = IlpPacket.serializeIlqpBySourceResponse({
+        destinationAmount: res.data.destinationAmount,
+        sourceHoldDuration
+      })
+    } else if (res.type === IlpPacket.Type.TYPE_ILQP_BY_DESTINATION_RESPONSE) {
+      const sourceAmount = nextHop.curveLocal.amountReverse(res.data.sourceAmount).plus(1).toString()
+      responsePacket = IlpPacket.serializeIlqpByDestinationResponse({
+        sourceAmount,
+        sourceHoldDuration
+      })
+    } else if (res.type === IlpPacket.Type.TYPE_ILQP_LIQUIDITY_RESPONSE) {
+      const combinedCurve = nextHop.curveLocal.join(new LiquidityCurve(res.data.liquidityCurve))
+      responsePacket = IlpPacket.serializeIlqpLiquidityResponse({
+        liquidityCurve: combinedCurve.toBuffer(),
+        appliesToPrefix: longer(nextHop.prefix, res.data.appliesToPrefix),
+        sourceHoldDuration,
+        expiresAt: new Date(Math.min(res.data.expiresAt, Date.now() + RATE_EXPIRY_DURATION))
+      })
     } else {
-      const { type, data } = IlpPacket.deserializeIlpPacket(Buffer.from(res.body.ilp, 'base64'))
+      throw new Error('Unknown response type')
+    }
 
-      const sourceHoldDuration = data.sourceHoldDuration + MIN_MESSAGE_WINDOW
-
-      let responsePacket
-      if (type === IlpPacket.Type.TYPE_ILQP_BY_DESTINATION_RESPONSE) {
-        const sourceAmount = nextHop.curveLocal.amountReverse(data.sourceAmount).plus(1).toString()
-        responsePacket = IlpPacket.serializeIlqpByDestinationResponse({
-          sourceAmount,
-          sourceHoldDuration
-        })
-      } else if (type === IlpPacket.Type.TYPE_ILQP_LIQUIDITY_RESPONSE) {
-        const combinedCurve = nextHop.curveLocal.join(data.liquidityCurve)
-        responsePacket = IlpPacket.serializeIlqpLiquidityResponse({
-          liquidityCurve: combinedCurve.toBuffer(),
-          appliesToPrefix: nextHop.prefix,
-          sourceHoldDuration,
-          expiresAt: new Date(Math.min(data.expiresAt, Date.now() + RATE_EXPIRY_DURATION))
-        })
-      } else {
-        throw new Error('Unknown request type')
-      }
-
-      return {
-        to: peerAccount,
-        ledger: prefix,
-        ilp: base64url(responsePacket)
-      }
+    return {
+      to: peerAccount,
+      ledger: prefix,
+      ilp: base64url(responsePacket)
     }
   }
+}
+
+function longer (str1, str2) {
+  return str1.length > str2 ? str1 : str2
 }

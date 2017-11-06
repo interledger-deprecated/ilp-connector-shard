@@ -1,5 +1,6 @@
 'use strict'
 
+const http = require('http')
 const Koa = require('koa')
 const Router = require('koa-router')
 const Logger = require('koa-logger')
@@ -47,7 +48,11 @@ class PrivateApp {
   }
 
   listen (port) {
-    this.app.listen(port)
+    this.server = http.createServer(this.app.callback()).listen(port)
+  }
+
+  close () {
+    this.server.close()
   }
 }
 
