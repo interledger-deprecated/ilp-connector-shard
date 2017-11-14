@@ -4,6 +4,7 @@ const IlpPacket = require('ilp-packet')
 const request = require('superagent')
 const BigNumber = require('bignumber.js')
 const { getDeterministicUuid } = require('../../util/uuid')
+const { InterledgerError } = require('../../util/errors')
 
 const MIN_MESSAGE_WINDOW = 1000
 
@@ -32,8 +33,7 @@ module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpEr
   }
 
   const nextExpiry = new Date(Date.parse(transfer.expiresAt) - MIN_MESSAGE_WINDOW).toISOString()
-
-  await request.post(nextHop.shard + '/internal/transfer')
+  const result = await request.post(nextHop.shard + '/internal/transfer')
     .send({
       transfer: {
         id: getDeterministicUuid(uuidSecret, transfer.id),
@@ -52,4 +52,10 @@ module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpEr
         }
       }
     })
+
+  if (result.body.state === 'fulfilled') {
+    return result.body.data
+  } else (result.body.state === 'rejected') {
+    throw new InterledgerError(result.body.data)
+  }
 }

@@ -20,6 +20,7 @@ const plugin = new Plugin(pluginOpts)
 const uuidSecret = (process.env.ICS_UUID_SECRET && Buffer.from(process.env.ICS_UUID_SECRET, 'base64'))
 
 startShard({
+  prefix: pluginOpts.prefix,
   plugin,
   initialTable: envJson('ICS_INITIAL_ROUTING_TABLE'),
   internalUri: process.env.ICS_INTERNAL_URI,
