@@ -55,7 +55,7 @@ module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpEr
 
   if (result.body.state === 'fulfilled') {
     return result.body.data
-  } else (result.body.state === 'rejected') {
+  } else if (result.body.state === 'rejected') {
     throw new InterledgerError(result.body.data)
   }
 }
