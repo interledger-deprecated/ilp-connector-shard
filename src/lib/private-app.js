@@ -24,7 +24,7 @@ class PrivateApp {
     }))
 
     router.post('/internal/transfer', async (ctx) => {
-      await handlers.sendTransfer({ transfer: ctx.request.body.transfer })
+      ctx.body = await handlers.sendTransfer({ transfer: ctx.request.body.transfer })
       ctx.status = 200
     })
 
