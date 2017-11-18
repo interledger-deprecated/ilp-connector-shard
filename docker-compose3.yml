@@ -1,0 +1,86 @@
+version: '3.3'
+services:
+  connie-west:
+    build: .
+    ports:
+      - "7001:7001"
+      - "11001:8080"
+    expose:
+      - "8080"
+      - "7001"
+      - "8081"
+    volumes:
+      - .:/src
+    environment:
+      ICS_INTERNAL_URI: http://connie-west:8081
+      ICS_PLUGIN: ilp-plugin-payment-channel-framework
+      ICS_PLUGIN_OPTS: |-
+        {
+          "maxBalance": "1000000000000",
+          "listener": {
+            "port": 7001
+          },
+          "incomingSecret": "secret",
+          "prefix": "g.usd.connie.west.",
+          "info": {
+          	"currencyScale": 9,
+          	"currencyCode": "USD",
+          	"prefix": "g.usd.connie.west.",
+          	"connectors": ["g.usd.connie.west.server"]
+          },
+          "store": true
+        }
+      ICS_INITIAL_ROUTING_TABLE: |-
+        [{
+          "prefix": "g.eur.connie.east.",
+          "shard": "http://connie-east:8081",
+          "curveLocal": [[0,0], [1000000000000, 860000000000]]
+        }]
+      DEBUG: ilp-*
+    networks:
+      main:
+        aliases:
+          - connie-west
+  connie-east:
+    build: .
+    ports:
+      - "7002:7002"
+      - "11002:8080"
+    expose:
+      - "8080"
+      - "7002"
+      - "8081"
+    volumes:
+      - .:/src
+    environment:
+      ICS_INTERNAL_URI: http://connie-east:8081
+      ICS_PLUGIN: ilp-plugin-payment-channel-framework
+      ICS_PLUGIN_OPTS: |-
+        {
+          "maxBalance": "1000000000000",
+          "listener": {
+            "port": 7002
+          },
+          "incomingSecret": "secret",
+          "prefix": "g.eur.connie.east.",
+          "info": {
+          	"currencyScale": 9,
+          	"currencyCode": "EUR",
+          	"prefix": "g.eur.connie.east.",
+          	"connectors": ["g.eur.connie.east.server"]
+          },
+          "store": true
+        }
+      ICS_INITIAL_ROUTING_TABLE: |-
+        [{
+          "prefix": "g.usd.connie.west.",
+          "shard": "http://connie-west:8081",
+          "curveLocal": [[0,0], [1000000000000, 1140000000000]]
+        }]
+      DEBUG: ilp-*
+    networks:
+      main:
+        aliases:
+          - connie-east
+networks:
+  main:

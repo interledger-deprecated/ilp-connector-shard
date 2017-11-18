@@ -5,6 +5,10 @@ const request = require('superagent')
 const PrivateApp = require('./src/lib/private-app')
 const RoutingTable = require('./src/lib/routing-table')
 
+process.on('unhandledRejection', (e) => {
+  console.error('UNHANDLED REJECTION', e)
+})
+
 module.exports = ({
   prefix,
   plugin, // LedgerPlugin
@@ -48,7 +52,15 @@ module.exports = ({
 
   const start = async () => {
     await plugin.connect()
-    plugin.registerTransferHandler(handlers.sendTransfer)
+    plugin.registerTransferHandler(async (transfer) => {
+      console.log('in transfer handler with transfer:', transfer)
+      return handlers.sendTransfer(transfer)
+        .catch((e) => {
+          console.log('HANDLE TRANSFER ERROR:', e)
+          console.log('HANDLE TRANSFER ERROR REASON:', e.reason)
+          throw e
+        })
+    })
     privateApp.listen(privatePort)
 
     if (routeManagerUri) {

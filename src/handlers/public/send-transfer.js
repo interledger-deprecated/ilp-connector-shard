@@ -22,6 +22,7 @@ module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpEr
     const finalAmount = new BigNumber(data.amount)
     if (nextAmount.lessThan(data.amount)) {
       // TODO should this make an http request to a handler?
+      console.log('REJECTING INSUFFICIENT SOURCE AMOUNT')
       await plugin.rejectIncomingTransfer(transfer.id,
         ilpErrors.R01_Insufficient_Source_Amount({
           message: 'Insufficient incoming liquidity'
@@ -53,7 +54,9 @@ module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpEr
       }
     })
 
+  console.log('RESULT:', result.body)
   if (result.body.state === 'fulfilled') {
+    console.log('RETURNING FULFILLMENTINFO:', result.body.data)
     return result.body.data
   } else if (result.body.state === 'rejected') {
     throw new InterledgerError(result.body.data)
