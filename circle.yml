@@ -1,0 +1,13 @@
+machine:
+  node:
+    version: 9.2.0
+deployment:
+  production:
+    branch: master
+    commands:
+      # Push NPM package if not yet published
+      #- mv npmrc-env .npmrc
+      #- if [ "$(npm show ilp-connector-shard version 2>/dev/null)" != "$(npm ls --depth=-1 2>/dev/null | head -1 | cut -f 1 -d " " | cut -f 2 -d @)" ] ; then npm publish ; fi
+general:
+  artifacts:
+    - "coverage/lcov-report"
