@@ -146,18 +146,22 @@ describe('App', function () {
     const error = {
       code: 'R01',
       name: 'Insufficient Source Amount',
-      triggeredBy: 'g.usd.connie.west.server',
-      forwardedBy: [],
-      triggeredAt: new Date(),
-      data: 'Insufficient incoming liquidity'
+      triggered_by: 'g.usd.connie.west.server',
+      forwarded_by: [],
+      triggered_at: new Date(),
+      additional_info: {}
     }
     const prepared = new Promise((resolve) =>
       this.receiverPlugin.on('incoming_prepare', resolve))
-    const rejected = new Promise((resolve) =>
+    const rejected = new Promise((resolve, reject) =>
       this.senderPlugin.on('outgoing_reject', (transfer, reason) => {
-        assert.equal(transfer.id, this.transfer.id)
-        assert.deepStrictEqual(reason, error)
-        resolve()
+        try {
+          assert.equal(transfer.id, this.transfer.id)
+          assert.deepStrictEqual(reason, error)
+          resolve()
+        } catch (err) {
+          reject(err)
+        }
       }))
     await this.senderPlugin.sendTransfer(this.transfer)
     const lastTransfer = await prepared
