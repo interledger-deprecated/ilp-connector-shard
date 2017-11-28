@@ -56,7 +56,7 @@ describe('Send Transfer (public)', function () {
 
   before(function () {
     this.testSendTransfer = function (params) {
-      return this.sendTransfer(Object.assign(this.defaultTransfer, params))
+      return this.sendTransfer(Object.assign({}, this.defaultTransfer, params))
     }
 
     this.testSendTransferToShard = function (opts) {
@@ -112,6 +112,17 @@ describe('Send Transfer (public)', function () {
       return this.testSendTransferToShard({
         nockTransfer: { amount: '100' },
         sendTransfer: {}
+      })
+    })
+
+    it('forwards if the packet amount is 0', function () {
+      const pkt = base64url(IlpPacket.serializeIlpPayment({
+        account: this.prefixEast + 'bob',
+        amount: '0'
+      }))
+      return this.testSendTransferToShard({
+        nockTransfer: { ilp: pkt, amount: '102' },
+        sendTransfer: { ilp: pkt }
       })
     })
   })
