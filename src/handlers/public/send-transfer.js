@@ -17,7 +17,8 @@ module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpEr
 
   const nextHop = routingTable.getNextHop(data.account)
   let nextAmount = nextHop.curveLocal.amountAt(transfer.amount)
-  if (nextHop.local) {
+  // Always forward when finalAmount is 0.
+  if (nextHop.local && data.amount !== '0') {
     const finalAmount = new BigNumber(data.amount)
     if (nextAmount.lessThan(data.amount)) {
       // TODO should this make an http request to a handler?
