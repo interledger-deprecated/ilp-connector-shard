@@ -16,10 +16,10 @@ module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpEr
   }
 
   const nextHop = routingTable.getNextHop(data.account)
-  const finalAmount = new BigNumber(data.amount)
   let nextAmount = nextHop.curveLocal.amountAt(transfer.amount)
   // Always forward when finalAmount is 0.
-  if (nextHop.local && !finalAmount.equals(0)) {
+  if (nextHop.local && data.amount !== '0') {
+    const finalAmount = new BigNumber(data.amount)
     if (nextAmount.lessThan(data.amount)) {
       // TODO should this make an http request to a handler?
       await plugin.rejectIncomingTransfer(transfer.id,
