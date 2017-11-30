@@ -12,6 +12,7 @@ describe('Update routes', function () {
         prefix: 'g.eur.connie.east.',
         shard: 'http://connie-east:8081',
         curveLocal: [[0, 0], [500, 1000]],
+        curveRemote: [[0, 0], [1000, 500]],
         local: true
       }]
     })
@@ -24,6 +25,7 @@ describe('Update routes', function () {
         prefix: 'g.eur.connie.east.',
         shard: 'http://connie-south:8081',
         curveLocal: [[0, 0], [123, 456]],
+        curveRemote: [[0, 0], [1000, 500]],
         local: true
       }]
     })

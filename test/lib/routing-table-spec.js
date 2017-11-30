@@ -9,10 +9,10 @@ describe('RoutingTable', function () {
     it('returns the first match', function () {
       const table = new RoutingTable({
         initialTable: [
-          { prefix: 'g.usd.connie.west.', curveLocal: [] },
-          { prefix: 'g.usd.connie.east.', curveLocal: [] },
-          { prefix: 'g.usd.connie.', curveLocal: [] },
-          { prefix: 'g.usd.conrad.', curveLocal: [] }
+          { prefix: 'g.usd.connie.west.', curveLocal: [], curveRemote: [] },
+          { prefix: 'g.usd.connie.east.', curveLocal: [], curveRemote: [] },
+          { prefix: 'g.usd.connie.', curveLocal: [], curveRemote: [] },
+          { prefix: 'g.usd.conrad.', curveLocal: [], curveRemote: [] }
         ]
       })
       assert.equal(table.getNextHop('g.usd.connie.west.bob').prefix, 'g.usd.connie.west.')

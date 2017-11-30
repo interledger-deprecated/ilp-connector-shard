@@ -22,6 +22,7 @@ describe('Send Request (public)', function () {
           prefix: this.prefixEast,
           shard: 'http://connie-east:8081',
           curveLocal: [[0, 0], [500, 1000]],
+          curveRemote: [[0, 0], [1000, 500]],
           local: true
         }]
       })
@@ -136,7 +137,8 @@ describe('Send Request (public)', function () {
           initialTable: [{
             prefix: this.prefixConrad,
             shard: 'http://connie-east:8081',
-            curveLocal: [[0, 0], [500, 1000]]
+            curveLocal: [[0, 0], [500, 1000]],
+            curveRemote: [[0, 0], [1000, 500]]
           }]
         })
         this.sendRequest = sendRequest(this.config)

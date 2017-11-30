@@ -17,7 +17,8 @@ class RoutingTable {
 
   setRoutes (routes) {
     this.routes = routes.map(entry => Object.assign(entry, {
-      curveLocal: new LiquidityCurve(entry.curveLocal)
+      curveLocal: new LiquidityCurve(entry.curveLocal),
+      curveRemote: new LiquidityCurve(entry.curveRemote)
     }))
   }
 }

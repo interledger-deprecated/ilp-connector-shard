@@ -11,29 +11,32 @@ module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpEr
   const packetBuffer = Buffer.from(transfer.ilp, 'base64')
   const { type, data } = IlpPacket.deserializeIlpPacket(packetBuffer)
 
-  if (type !== IlpPacket.Type.TYPE_ILP_PAYMENT) {
-    throw new Error('Unsupported ILP packet type: ' + type)
-  }
+  let nextHop
+  let nextAmount
+  switch (type) {
+    case IlpPacket.Type.TYPE_ILP_PAYMENT:
+      nextHop = routingTable.getNextHop(data.account)
+      nextAmount = nextHop.curveRemote.amountReverse(data.amount)
+      const sourceAmount = new BigNumber(transfer.amount)
 
-  const nextHop = routingTable.getNextHop(data.account)
-  let nextAmount = nextHop.curveLocal.amountAt(transfer.amount)
-  // Always forward when finalAmount is 0.
-  if (nextHop.local && data.amount !== '0') {
-    const finalAmount = new BigNumber(data.amount)
-    if (nextAmount.lessThan(data.amount)) {
-      // TODO should this make an http request to a handler?
-      await plugin.rejectIncomingTransfer(transfer.id,
-        ilpErrors.R01_Insufficient_Source_Amount({
-          message: 'Insufficient incoming liquidity'
-        }))
-      return
-    } else {
-      nextAmount = finalAmount
-    }
+      if (sourceAmount.lessThan(nextHop.curveLocal.amountReverse(nextAmount))) {
+        await plugin.rejectIncomingTransfer(transfer.id,
+          ilpErrors.R01_Insufficient_Source_Amount({
+            message: 'Insufficient incoming liquidity'
+          }))
+
+        return
+      }
+      break
+    case IlpPacket.Type.TYPE_ILP_FORWARDED_PAYMENT:
+      nextHop = routingTable.getNextHop(data.account)
+      nextAmount = nextHop.curveLocal.amountAt(transfer.amount)
+      break
+    default:
+      throw new Error('Unsupported ILP packet type: ' + type)
   }
 
   const nextExpiry = new Date(Date.parse(transfer.expiresAt) - MIN_MESSAGE_WINDOW).toISOString()
-
   await request.post(nextHop.shard + '/internal/transfer')
     .send({
       transfer: {
