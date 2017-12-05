@@ -46,6 +46,7 @@ describe('App', function () {
         prefix: 'g.eur.connie.east.',
         shard: 'http://127.0.0.1:8084',
         curveLocal: [[0, 0], [1000, 2000]],
+        curveRemote: [[0, 0], [1000, 2000]],
         local: true
       }],
       publicPort: 8080,
@@ -116,7 +117,7 @@ describe('App', function () {
           from: 'g.eur.connie.east.client',
           to: 'g.eur.connie.east.server',
           id: transfer.id,
-          amount: '100',
+          amount: '50',
           ilp: base64url(this.ilpPacket),
           executionCondition: base64url(this.hash),
           expiresAt: transfer.expiresAt

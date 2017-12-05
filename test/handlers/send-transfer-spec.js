@@ -35,6 +35,7 @@ describe('Send Transfer (public)', function () {
           prefix: this.prefixEast,
           shard: 'http://connie-east:8081',
           curveLocal: [[0, 0], [500, 1000]],
+          curveRemote: [[0, 0], [500, 1000]],
           local: true
         }]
       })
@@ -92,7 +93,7 @@ describe('Send Transfer (public)', function () {
 
   describe('with a local route', function () {
     it('rejects a transfer with insufficient incoming liquidity', function () {
-      return this.testSendTransfer({ amount: '49' }).then(() => {
+      return this.testSendTransfer({ amount: '24' }).then(() => {
         assert.deepStrictEqual(this.plugin.rejections, [{
           transferId: this.defaultTransfer.id,
           rejectionMessage: {
@@ -110,15 +111,14 @@ describe('Send Transfer (public)', function () {
 
     it('posts to the next shard', function () {
       return this.testSendTransferToShard({
-        nockTransfer: { amount: '100' },
+        nockTransfer: { amount: '50' },
         sendTransfer: {}
       })
     })
 
-    it('forwards if the packet amount is 0', function () {
-      const pkt = base64url(IlpPacket.serializeIlpPayment({
-        account: this.prefixEast + 'bob',
-        amount: '0'
+    it('forwards if the packet is a forwarded payment', function () {
+      const pkt = base64url(IlpPacket.serializeIlpForwardedPayment({
+        account: this.prefixEast + 'bob'
       }))
       return this.testSendTransferToShard({
         nockTransfer: { ilp: pkt, amount: '102' },
@@ -134,7 +134,8 @@ describe('Send Transfer (public)', function () {
         initialTable: [{
           prefix: this.prefixConrad,
           shard: 'http://connie-east:8081',
-          curveLocal: [[0, 0], [500, 1000]]
+          curveLocal: [[0, 0], [500, 1000]],
+          curveRemote: [[0, 0], [500, 1000]]
         }]
       })
       this.sendTransfer = sendTransfer(this.config)
@@ -143,7 +144,7 @@ describe('Send Transfer (public)', function () {
     it('posts to the next shard', function () {
       return this.testSendTransferToShard({
         nockTransfer: {
-          amount: '98',
+          amount: '50',
           ilp: base64url(IlpPacket.serializeIlpPayment({
             account: this.prefixConrad + 'south.bob',
             amount: '100'
