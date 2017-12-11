@@ -7,7 +7,7 @@ const { getDeterministicUuid } = require('../../util/uuid')
 
 const MIN_MESSAGE_WINDOW = 1000
 
-module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpErrors }) => async (transfer) => {
+module.exports = ({ plugin, prefix, routingTable, curveCache, internalUri, uuidSecret, ilpErrors }) => async (transfer) => {
   const packetBuffer = Buffer.from(transfer.ilp, 'base64')
   const { type, data } = IlpPacket.deserializeIlpPacket(packetBuffer)
 
@@ -16,7 +16,12 @@ module.exports = ({ plugin, prefix, routingTable, internalUri, uuidSecret, ilpEr
   switch (type) {
     case IlpPacket.Type.TYPE_ILP_PAYMENT:
       nextHop = routingTable.getNextHop(data.account)
-      nextAmount = nextHop.curveRemote.amountReverse(data.amount)
+      if (nextHop.local) {
+        nextAmount = data.amount
+      } else {
+        const curveRemote = await curveCache.get(nextHop.shard, data.account)
+        nextAmount = curveRemote.amountReverse(data.amount)
+      }
       const sourceAmount = new BigNumber(transfer.amount)
 
       if (sourceAmount.lessThan(nextHop.curveLocal.amountReverse(nextAmount))) {

@@ -132,5 +132,5 @@ module.exports = ({ prefix, peerAccount, routeManagerUri, routingTable, ilpError
 }
 
 function longer (str1, str2) {
-  return str1.length > str2 ? str1 : str2
+  return str1.length > str2.length ? str1 : str2
 }

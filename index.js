@@ -4,6 +4,7 @@ const crypto = require('crypto')
 const request = require('superagent')
 const PrivateApp = require('./src/lib/private-app')
 const RoutingTable = require('./src/lib/routing-table')
+const CurveCache = require('./src/lib/curve-cache')
 
 module.exports = ({
   plugin, // LedgerPlugin
@@ -24,6 +25,7 @@ module.exports = ({
   const peerAccount = plugin.getPeerAccount()
 
   const routingTable = new RoutingTable({ initialTable })
+  const curveCache = new CurveCache({})
 
   const ilpErrors = require('./src/lib/ilp-errors')({ account })
 
@@ -40,6 +42,7 @@ module.exports = ({
       prefix,
       ilpErrors,
       routingTable,
+      curveCache,
       internalUri,
       uuidSecret
     }),

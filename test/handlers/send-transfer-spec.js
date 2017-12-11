@@ -4,9 +4,11 @@
 const assert = require('assert')
 const nock = require('nock')
 const IlpPacket = require('ilp-packet')
+const { LiquidityCurve } = require('ilp-routing')
 const base64url = require('base64url')
 const sendTransfer = require('../../src/handlers/public/send-transfer')
 const RoutingTable = require('../../src/lib/routing-table')
+const CurveCache = require('../../src/lib/curve-cache')
 
 class MockPlugin {
   constructor () {
@@ -35,10 +37,10 @@ describe('Send Transfer (public)', function () {
           prefix: this.prefixEast,
           shard: 'http://connie-east:8081',
           curveLocal: [[0, 0], [500, 1000]],
-          curveRemote: [[0, 0], [500, 1000]],
           local: true
         }]
-      })
+      }),
+      curveCache: new CurveCache()
     }
     this.config.ilpErrors = require('../../src/lib/ilp-errors')(this.config)
     this.sendTransfer = sendTransfer(this.config)
@@ -93,7 +95,7 @@ describe('Send Transfer (public)', function () {
 
   describe('with a local route', function () {
     it('rejects a transfer with insufficient incoming liquidity', function () {
-      return this.testSendTransfer({ amount: '24' }).then(() => {
+      return this.testSendTransfer({ amount: '49' }).then(() => {
         assert.deepStrictEqual(this.plugin.rejections, [{
           transferId: this.defaultTransfer.id,
           rejectionMessage: {
@@ -111,7 +113,7 @@ describe('Send Transfer (public)', function () {
 
     it('posts to the next shard', function () {
       return this.testSendTransferToShard({
-        nockTransfer: { amount: '50' },
+        nockTransfer: { amount: '100' },
         sendTransfer: {}
       })
     })
@@ -134,17 +136,30 @@ describe('Send Transfer (public)', function () {
         initialTable: [{
           prefix: this.prefixConrad,
           shard: 'http://connie-east:8081',
-          curveLocal: [[0, 0], [500, 1000]],
-          curveRemote: [[0, 0], [500, 1000]]
+          curveLocal: [[0, 0], [500, 1000]]
         }]
       })
       this.sendTransfer = sendTransfer(this.config)
+
+      nock('http://connie-east:8081').post('/internal/request', {
+        ilp: base64url(IlpPacket.serializeIlqpLiquidityRequest({
+          destinationAccount: this.prefixConrad + 'south.bob',
+          destinationHoldDuration: 10000
+        }))
+      }).reply(200, {
+        ilp: base64url(IlpPacket.serializeIlqpLiquidityResponse({
+          liquidityCurve: (new LiquidityCurve([[0, 0], [100, 300]])).toBuffer(),
+          appliesToPrefix: this.prefixConrad,
+          sourceHoldDuration: 9000,
+          expiresAt: new Date(Date.now() + 10000)
+        }))
+      })
     })
 
     it('posts to the next shard', function () {
       return this.testSendTransferToShard({
         nockTransfer: {
-          amount: '50',
+          amount: '33',
           ilp: base64url(IlpPacket.serializeIlpPayment({
             account: this.prefixConrad + 'south.bob',
             amount: '100'

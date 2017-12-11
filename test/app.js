@@ -46,7 +46,6 @@ describe('App', function () {
         prefix: 'g.eur.connie.east.',
         shard: 'http://127.0.0.1:8084',
         curveLocal: [[0, 0], [1000, 2000]],
-        curveRemote: [[0, 0], [1000, 2000]],
         local: true
       }],
       publicPort: 8080,
@@ -117,7 +116,7 @@ describe('App', function () {
           from: 'g.eur.connie.east.client',
           to: 'g.eur.connie.east.server',
           id: transfer.id,
-          amount: '50',
+          amount: '100',
           ilp: base64url(this.ilpPacket),
           executionCondition: base64url(this.hash),
           expiresAt: transfer.expiresAt
@@ -148,7 +147,6 @@ describe('App', function () {
       code: 'R01',
       name: 'Insufficient Source Amount',
       triggered_by: 'g.usd.connie.west.server',
-      forwarded_by: [],
       triggered_at: new Date(),
       additional_info: {}
     }
@@ -158,7 +156,9 @@ describe('App', function () {
       this.senderPlugin.on('outgoing_reject', (transfer, reason) => {
         try {
           assert.equal(transfer.id, this.transfer.id)
-          assert.deepStrictEqual(reason, error)
+          assert.deepStrictEqual(reason, Object.assign({}, error, {
+            forwarded_by: 'g.eur.connie.east.server'
+          }))
           resolve()
         } catch (err) {
           reject(err)
