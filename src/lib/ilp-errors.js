@@ -34,12 +34,12 @@ module.exports = ({ account }) => {
   }
 
   Object.keys(errors).forEach((key) => {
-    ilpErrors[key] = (extra) => Object.assign({
+    ilpErrors[key] = (msg, data) => ({
+      code: errors[key].code,
+      message: errors[key].name + ': ' + msg,
       triggeredBy: account,
-      forwardedBy: [],
-      triggeredAt: new Date(),
-      data: ''
-    }, errors[key], extra)
+      data: data || Buffer.from('')
+    })
   })
   return ilpErrors
 }

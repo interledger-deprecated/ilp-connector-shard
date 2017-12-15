@@ -26,9 +26,7 @@ module.exports = ({ plugin, prefix, routingTable, curveCache, internalUri, uuidS
 
       if (sourceAmount.lessThan(nextHop.curveLocal.amountReverse(nextAmount))) {
         await plugin.rejectIncomingTransfer(transfer.id,
-          ilpErrors.R01_Insufficient_Source_Amount({
-            message: 'Insufficient incoming liquidity'
-          }))
+          ilpErrors.R01_Insufficient_Source_Amount('Insufficient incoming liquidity'))
 
         return
       }
