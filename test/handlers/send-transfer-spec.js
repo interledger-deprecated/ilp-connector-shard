@@ -100,12 +100,9 @@ describe('Send Transfer (public)', function () {
           transferId: this.defaultTransfer.id,
           rejectionMessage: {
             code: 'R01',
-            name: 'Insufficient Source Amount',
-            message: 'Insufficient incoming liquidity',
+            message: 'Insufficient Source Amount: Insufficient incoming liquidity',
             triggeredBy: this.config.account,
-            forwardedBy: [],
-            triggeredAt: new Date(),
-            data: ''
+            data: Buffer.from('')
           }
         }])
       })

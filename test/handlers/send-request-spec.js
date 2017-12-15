@@ -76,11 +76,9 @@ describe('Send Request (public)', function () {
         }),
         response: {
           code: 'F02',
-          name: 'Unreachable',
+          message: 'Unreachable: No route found to g.usd.no-route.bob',
           triggeredBy: this.config.account,
-          forwardedBy: [],
-          triggeredAt: new Date(this.START_DATE),
-          data: ''
+          data: Buffer.from('')
         }
       })
     })
@@ -162,31 +160,60 @@ describe('Send Request (public)', function () {
           }),
           response: {
             code: 'F01',
-            name: 'Invalid Packet',
             triggeredBy: this.config.account,
-            forwardedBy: [],
-            triggeredAt: new Date(this.START_DATE),
-            data: ''
+            message: 'Invalid Packet: Received incorrect response type',
+            data: Buffer.from('')
           }
         })
       })
 
       it('relays an error packet', function () {
+        const now = new Date()
         return this.testRemoteQuote({
           remoteRequest: IlpPacket.serializeIlqpBySourceRequest({
             destinationAccount: this.prefixConrad + 'south.bob',
             sourceAmount: '200',
             destinationHoldDuration: 3000
           }),
-          remoteResponse: IlpPacket.serializeIlpError(this.config.ilpErrors.T00_Internal_Error()),
+          remoteResponse: IlpPacket.serializeIlpError({
+            code: 'T00',
+            name: 'Internal Error',
+            triggeredBy: this.prefixConrad + 'south.bob',
+            triggeredAt: now,
+            forwardedBy: [],
+            data: ''
+          }),
           request: IlpPacket.serializeIlqpBySourceRequest({
             destinationAccount: this.prefixConrad + 'south.bob',
             sourceAmount: '100',
             destinationHoldDuration: 3000
           }),
-          response: Object.assign(this.config.ilpErrors.T00_Internal_Error(), {
-            forwardedBy: [this.config.account]
-          })
+          response: {
+            code: 'T00',
+            name: 'Internal Error',
+            triggeredBy: this.prefixConrad + 'south.bob',
+            triggeredAt: now,
+            forwardedBy: [this.config.account],
+            data: ''
+          }
+        })
+      })
+
+      it('relays a rejection packet', function () {
+        const rejection = this.config.ilpErrors.T00_Internal_Error('Fail.')
+        return this.testRemoteQuote({
+          remoteRequest: IlpPacket.serializeIlqpBySourceRequest({
+            destinationAccount: this.prefixConrad + 'south.bob',
+            sourceAmount: '200',
+            destinationHoldDuration: 3000
+          }),
+          remoteResponse: IlpPacket.serializeIlpRejection(rejection),
+          request: IlpPacket.serializeIlqpBySourceRequest({
+            destinationAccount: this.prefixConrad + 'south.bob',
+            sourceAmount: '100',
+            destinationHoldDuration: 3000
+          }),
+          response: rejection
         })
       })
 

@@ -28,7 +28,7 @@ module.exports = ({ prefix, peerAccount, routeManagerUri, routingTable, ilpError
   const sourceHoldDuration = destinationHoldDuration + MIN_MESSAGE_WINDOW
 
   if (!nextHop) {
-    const responsePacket = IlpPacket.serializeIlpError(ilpErrors.F02_Unreachable())
+    const responsePacket = IlpPacket.serializeIlpRejection(ilpErrors.F02_Unreachable('No route found to ' + destinationAccount))
     return {
       to: peerAccount,
       ledger: prefix,
@@ -98,8 +98,10 @@ module.exports = ({ prefix, peerAccount, routeManagerUri, routingTable, ilpError
     let responsePacket
     if (res.type === IlpPacket.Type.TYPE_ILP_ERROR) {
       responsePacket = IlpPacket.serializeIlpError(ilpErrors.forward(res.data))
+    } else if (res.type === IlpPacket.Type.TYPE_ILP_REJECTION) {
+      responsePacket = IlpPacket.serializeIlpRejection(res.data)
     } else if (req.type + 1 !== res.type) {
-      responsePacket = IlpPacket.serializeIlpError(ilpErrors.F01_Invalid_Packet())
+      responsePacket = IlpPacket.serializeIlpRejection(ilpErrors.F01_Invalid_Packet('Received incorrect response type'))
     } else if (res.type === IlpPacket.Type.TYPE_ILQP_BY_SOURCE_RESPONSE) {
       responsePacket = IlpPacket.serializeIlqpBySourceResponse({
         destinationAmount: res.data.destinationAmount,
